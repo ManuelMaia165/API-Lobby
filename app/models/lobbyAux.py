@@ -15,7 +15,7 @@ class LobbyAux(db.Model):
 
 class LobbyAuxSchema(ma.Schema):
     class Meta:
-        fields = ('id', 'user','id_sala','pontuacao')
+        fields = ('id', 'user','id_sala','sum')
 
 
 lobbyAux_schema = LobbyAuxSchema()

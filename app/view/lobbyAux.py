@@ -1,7 +1,9 @@
-from app import db
 from flask import request, jsonify
-from sqlalchemy import func, desc
-from ..models.lobbyAux import LobbyAux, lobbyAux_schema, lobbysAux_schema
+
+
+from app import db
+from sqlalchemy.sql import func
+from ..models.lobbyAux import LobbyAux, lobbyAux_schema
 
 
 def post_lobbyAux(id_sala):
@@ -59,11 +61,13 @@ def get_all_lobbysAux():
         print(lista)
         return lista, 201
 
+
+
     return jsonify({'mensagem': 'O usuario não existe'}), 404
 
 
 def get_top_pontos():
-    lobby = db.session.query(LobbyAux.user,LobbyAux.pontuacao, db.func.sum(LobbyAux.pontuacao)).group_by(LobbyAux.user, LobbyAux.pontuacao)
+    lobby = db.session.query(LobbyAux.user, func.sum(LobbyAux.pontuacao).label("sum")).group_by(LobbyAux.user)
     print(lobby)
     lista = []
     if lobby:

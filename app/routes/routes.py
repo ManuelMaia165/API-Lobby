@@ -6,7 +6,7 @@ from ..view import lobby, lobbyAux
 def root():
     return jsonify({'mensagem': 'Deu bom'})
 
-@app.route('/lobbys', methods=['POST'])
+@app.route('/lobbys/', methods=['POST'])
 def post_lobby():
     return lobby.post_lobby()
 
