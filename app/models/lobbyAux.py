@@ -5,7 +5,7 @@ class LobbyAux(db.Model):
     id : int = db.Column(db.Integer, primary_key=True, autoincrement=True)
     id_sala : int = db.Column(db.Integer, autoincrement=True, nullable=False)
     user : str = db.Column(db.String(80), unique=False, nullable=False)
-    pontuacao : str = db.Column(db.Integer, nullable=False)
+    pontuacao : int = db.Column(db.Integer, nullable=False)
 
     def __init__(self, id_sala, user, pontuacao=0):
         self.id_sala = id_sala
