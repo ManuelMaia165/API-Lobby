@@ -67,7 +67,7 @@ def get_all_lobbysAux():
 
 
 def get_top_pontos():
-    lobby = db.session.query(LobbyAux.user, func.sum(LobbyAux.pontuacao).label("sum")).group_by(LobbyAux.user).order_by(desc(LobbyAux.sum))
+    lobby = db.session.query(LobbyAux.user, func.sum(LobbyAux.pontuacao).label("sum")).group_by(LobbyAux.user).order_by(desc(LobbyAux.pontuacao))
     print(lobby)
     lista = []
     if lobby:
