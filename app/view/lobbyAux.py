@@ -2,7 +2,7 @@ from flask import request, jsonify
 
 
 from app import db
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, desc
 from ..models.lobbyAux import LobbyAux, lobbyAux_schema
 
 
@@ -67,7 +67,7 @@ def get_all_lobbysAux():
 
 
 def get_top_pontos():
-    lobby = db.session.query(LobbyAux.user, func.sum(LobbyAux.pontuacao).label("sum")).group_by(LobbyAux.user)
+    lobby = db.session.query(LobbyAux.user, func.sum(LobbyAux.pontuacao).label("sum")).group_by(LobbyAux.user).order_by(desc(LobbyAux.sum))
     print(lobby)
     lista = []
     if lobby:

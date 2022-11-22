@@ -1,6 +1,7 @@
 from app import db
 from flask import request, jsonify
 from ..models.lobby import Lobby, lobby_schema, lobbys_schema
+from ..view import lobbyAux
 import json
 
 def post_lobby():
@@ -14,6 +15,7 @@ def post_lobby():
     try:
         db.session.add(lobby)
         db.session.commit()
+        lobbyAux.post_lobbyAux(lobby.id)
         return jsonify({'mensagem': 'Registrado com sucesso','ID' : lobby.id}), 201
     except:
         return jsonify({'mensagem': 'Não criado'}), 500
