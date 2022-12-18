@@ -11,6 +11,6 @@ db = SQLAlchemy(app)
 ma = Marshmallow(app)
 
 from .models import lobby
-from .routes import routes
+from .routes import lobby
 
 
