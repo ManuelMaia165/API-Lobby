@@ -75,14 +75,14 @@ class Game:
             return
 
         try:
-            # Serialize as alternativas usando o AlternativeSchema
+            # Serialize the alternatives using the AlternativeSchema
             serialized_alternatives = alternative_schema.dump(round.alternatives, many=True)
 
             self.rabbitmq_client.send_message(
                 exchange='lobbies',
                 routing_key=self.id_lobby,
                 body=json.dumps(
-                    {'type': 'question', 'question': round.question.question, 'alternatives': serialized_alternatives})
+                    {'type': 'question', 'question': round.question.text, 'alternatives': serialized_alternatives})
             )
         except pika.exceptions.AMQPError:
             print("Error sending message to RabbitMQ server")

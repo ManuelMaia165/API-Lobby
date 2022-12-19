@@ -16,7 +16,7 @@ class RabbitMQClient:
         self.connection.close()
 
     def send_message(self, exchange, routing_key, body):
-        self.channel.exchange_declare(exchange=exchange, exchange_type='topic')
+        routing_key = str(routing_key)  # converter routing_key para uma string
         self.channel.basic_publish(
             exchange=exchange,
             routing_key=routing_key,
