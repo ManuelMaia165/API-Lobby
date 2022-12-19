@@ -1,12 +1,20 @@
 import pika
+import pika.exceptions
 import json
 from .player import PlayerController
 from .question import QuestionController
-from .alternative import AlternativeController
+from .alternative import AlternativeController, AlternativeSchema
+from .lobby import LobbyController
+from .rabbitMQ import RabbitMQClient
+from .round import Round
 
 player_controler = PlayerController()
 alternative_controller = AlternativeController()
 question_controller = QuestionController()
+lobby_controller = LobbyController()
+alternative_schema = AlternativeSchema()
+
+
 
 class Game:
     def __init__(self, id_lobby, rounds, host='localhost'):
@@ -14,16 +22,19 @@ class Game:
         self.rounds = rounds
         self.host = host
         self.current_round = 0
-        self.connection = None
-        self.channel = None
+        self.active_players = []
+        self.rabbitmq_client = RabbitMQClient(host)
 
     def start(self, theme):
+        if self.rounds <= 0:
+            raise ValueError("Number of rounds must be greater than zero")
         questions = []
         alternatives = []
 
         for i in range(self.rounds):
             question = question_controller.get_random_question_by_theme(theme)
             questions.append(question)
+            print(question.id)
             round_alternatives = alternative_controller.get_alternatives_by_question_id(question.id)
             alternatives.append(round_alternatives)
 
@@ -56,53 +67,83 @@ class Game:
         else:
             self._finish_game()
 
-    def _finish_game(self):
-        # Implemente o método para finalizar o jogo aqui
-        pass
-
-    def _connect(self):
-        self.connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host=self.host)
-        )
-        self.channel = self.connection.channel()
-
-    def _close_connection(self):
-        self.connection.close()
-
     def _send_question(self, round):
-        self._connect()
-        self.channel.exchange_declare(exchange='lobbies', exchange_type='topic')
-        self.channel.basic_publish(
-            exchange='lobbies',
-            routing_key=f'lobby.{self.id_lobby}',
-            body=json.dumps({'question': round.question, 'alternatives': round.alternatives})
-        )
-        self._close_connection()
+        try:
+            self.rabbitmq_client.connect()
+        except pika.exceptions.AMQPConnectionError:
+            print("Error connecting to RabbitMQ server")
+            return
+
+        try:
+            # Serialize as alternativas usando o AlternativeSchema
+            serialized_alternatives = alternative_schema.dump(round.alternatives, many=True)
+
+            self.rabbitmq_client.send_message(
+                exchange='lobbies',
+                routing_key=self.id_lobby,
+                body=json.dumps(
+                    {'type': 'question', 'question': round.question.question, 'alternatives': serialized_alternatives})
+            )
+        except pika.exceptions.AMQPError:
+            print("Error sending message to RabbitMQ server")
+
+        self.rabbitmq_client.close_connection()
 
     def _send_ranking(self, ranking):
-        self._connect()
-        self.channel.exchange_declare(exchange='lobbies', exchange_type='topic')
-        self.channel.basic_publish(
-            exchange='lobbies',
-            routing_key=f'lobby.{self.id_lobby}',
-            body=json.dumps({'ranking': ranking})
-        )
+        # Envie o ranking para os jogadores
+        try:
+            self.rabbitmq_client.connect()
+        except pika.exceptions.AMQPConnectionError:
+            print("Error connecting to RabbitMQ server")
+            return
 
+        try:
+            self.rabbitmq_client.send_message(
+                exchange='lobbies',
+                routing_key=self.id_lobby,
+                body=json.dumps({'type': 'ranking', 'ranking': ranking})
+            )
+        except pika.exceptions.AMQPError:
+            print("Error sending message to RabbitMQ server")
 
+        self.rabbitmq_client.close_connection()
 
-class Round:
-    def __init__(self, game, question, alternatives):
-        self.game = game
-        self.question = question
-        self.alternatives = alternatives
-        self.answers = {}
+    def _finish_game(self):
+        # Envie a mensagem de fim de jogo para os jogadores
+        try:
+            self.rabbitmq_client.connect()
+        except pika.exceptions.AMQPConnectionError:
+            print("Error connecting to RabbitMQ server")
+            return
 
-    def add_answer(self, user, answer):
-        self.answers[user] = answer
+        try:
+            self.rabbitmq_client.send_message(
+                exchange='lobbies',
+                routing_key=self.id_lobby,
+                body=json.dumps({'type': 'finish'})
+            )
+        except pika.exceptions.AMQPError:
+            print("Error sending message to RabbitMQ server")
 
-    def finish(self):
-        self.game._end_round(self)
+        self.rabbitmq_client.close_connection()
 
-    def get_correct_answer(self):
-        # Implemente a lógica para determinar qual é a resposta correta de acordo com as regras do jogo aqui
-        return self.alternatives[0]  # considera que a primeira alternativa é a correta
+    def disconnect_player(self, player_id):
+        if player_id in self.active_players:
+            self.active_players.remove(player_id)
+
+        try:
+            self.rabbitmq_client.connect()
+        except pika.exceptions.AMQPConnectionError:
+            print("Error connecting to RabbitMQ server")
+            return
+
+        try:
+            self.rabbitmq_client.send_message(
+                exchange='lobbies',
+                routing_key=player_id,
+                body=json.dumps({'type': 'disconnect'})
+            )
+        except pika.exceptions.AMQPError:
+            print("Error sending message to RabbitMQ server")
+
+        self.rabbitmq_client.close_connection()

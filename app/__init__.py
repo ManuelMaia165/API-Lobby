@@ -10,7 +10,7 @@ app.config.from_object('config')
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
 
-from .models import lobby
-from .routes import lobby
+from .models import lobby, question, alternatives, player
+from .routes import lobby, game
 
 
