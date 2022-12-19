@@ -1,92 +1,109 @@
-import random
-import select
-import threading
-import time
-import requests
-from .lobby import LobbyController
+import pika
+import json
 from .player import PlayerController
+from .question import QuestionController
+from .alternative import AlternativeController
 
-
-lobby_controller = LobbyController()
-player_controller = PlayerController()
+player_controler = PlayerController()
 
 class Game:
-    def __init__(self, clients, questions, num_rounds, time_limit, id_lobby):
-        self.clients = clients
-        self.questions = questions
-        self.num_rounds = num_rounds
-        self.time_limit = time_limit
+    def __init__(self, id_lobby, rounds, host='localhost'):
         self.id_lobby = id_lobby
-        self.scores = {}
-        self.current_question = 0  # Adiciona a variável de controle de pergunta
+        self.rounds = rounds
+        self.host = host
+        self.current_round = 0
+        self.connection = None
+        self.channel = None
 
-    def play_round(self, client):
-        # Seleciona a pergunta atual
-        question = self.questions[self.current_question]
+    def start(self, theme):
+        questions = []
+        alternatives = []
 
-        # Envia a pergunta e as alternativas para o cliente
-        client.send(question["question"].encode())
-        for choice in question["choices"]:
-            client.send(choice.encode())
+        question_controller = QuestionController()
+        alternative_controller = AlternativeController()
 
-        # Recebe respostas e tempos do cliente
-        ready, _, _ = select.select([client], [], [], self.time_limit * 4)  # Aumenta o tempo de espera para 4 vezes o limite
-        if client in ready:
-            answer = client.recv(1024).decode()
-            time = client.recv(1024).decode()
+        for i in range(self.rounds):
+            question = question_controller.get_random_question_by_theme(theme)
+            questions.append(question)
+            round_alternatives = alternative_controller.get_alternatives_by_question_id(question.id)
+            alternatives.append(round_alternatives)
+
+        self.questions = questions
+        self.alternatives = alternatives
+        self.current_round = 1
+        self._start_round()
+
+    def _start_round(self):
+        # Obtenha a pergunta e as alternativas da rodada atual a partir da lista
+        question = self.questions[self.current_round - 1]
+        alternatives = self.alternatives[self.current_round - 1]
+        round = Round(self, question, alternatives)
+        self._send_question(round)
+
+    def _end_round(self, round):
+        # Atualize a pontuação de cada jogador
+        for user, answer in round.answers.items():
+            score = player_controler.update_score(user, answer)
+
+        # Obtenha o ranking dos jogadores
+        ranking = player_controler.get_players_by_lobby(self.id_lobby)
+
+        # Envie o ranking para os jogadores
+        self._send_ranking(ranking)
+
+        if self.current_round < self.rounds:
+            self.current_round += 1
+            self._start_round()
         else:
-            player_controller.leave_lobby(self.id_lobby, client.recv(1024).decode())
-            self.clients.remove(client)
-            return
+            self._finish_game()
 
-        # Verifica se a resposta é correta e atualiza a pontuação do jogador no banco de dados, se necessário
-        if answer == question["correct_answer"]:
-            user = client.recv(1024).decode()  # Obtém o usuário do jogador
-            score = time * 10  # Calcula a pontuação do jogador baseado no tempo
-            if user not in self.scores:  # Verifica se a pontuação já foi atualizada
-                self.scores[user] = score  # Atualiza o score no dicionário
-                result = player_controller.update_score(self.id_lobby, user, score)  # Atualiza o score no banco de dados
-                if 'error' in result:
-                    # Trata o erro aqui
-                    pass
-        else:
-            # Trata a resposta incorreta aqui, se desejado
-            pass
+    def _finish_game(self):
+        # Implemente o método para finalizar o jogo aqui
+        pass
 
-        # Incrementa o índice da pergunta atual
-        self.current_question += 1
+    def _connect(self):
+        self.connection = pika.BlockingConnection(
+            pika.ConnectionParameters(host=self.host)
+        )
+        self.channel = self.connection.channel()
 
+    def _close_connection(self):
+        self.connection.close()
 
-    def send_ranking_to_frontend(self, ranking):
-        # Envia o ranking para o front-end através de uma chamada HTTP POST
-        response = requests.post("http://frontend.com/ranking", json=ranking)
+    def _send_question(self, round):
+        self._connect()
+        self.channel.exchange_declare(exchange='lobbies', exchange_type='topic')
+        self.channel.basic_publish(
+            exchange='lobbies',
+            routing_key=f'lobby.{self.id_lobby}',
+            body=json.dumps({'question': round.question, 'alternatives': round.alternatives})
+        )
+        self._close_connection()
 
-        # Verifica se a chamada foi bem-sucedida
-        if response.status_code == 200:
-            print("Ranking enviado com sucesso para o front-end")
-        else:
-            print("Erro ao enviar ranking para o front-end:", response.text)
-
-    def start_game(self):
-        # Loop pelas rodadas do jogo
-        for round_num in range(self.num_rounds):
-            # Cria uma thread para cada jogador
-            threads = []
-            for client in self.clients:
-                t = threading.Thread(target=self.play_round, args=(client,))
-                t.start()
-                threads.append(t)
-
-            # Aguarda todas as threads finalizarem
-            for t in threads:
-                t.join()
-
-            # Exibe o ranking após cada rodada
-            time.sleep(self.time_limit * 2)  # Aguarda o dobro do tempo especificado
-            ranking = player_controller.get_players_by_lobby(self.id_lobby)
-
-            # Envia o ranking para o front-end
-            self.send_ranking_to_frontend(ranking)
+    def _send_ranking(self, ranking):
+        self._connect()
+        self.channel.exchange_declare(exchange='lobbies', exchange_type='topic')
+        self.channel.basic_publish(
+            exchange='lobbies',
+            routing_key=f'lobby.{self.id_lobby}',
+            body=json.dumps({'ranking': ranking})
+        )
 
 
 
+class Round:
+    def init(self, game, question, alternatives):
+        self.game = game
+        self.question = question
+        self.alternatives = alternatives
+        self.answers = {}
+
+    def add_answer(self, user, answer):
+        self.answers[user] = answer
+
+    def finish(self):
+        self.game._end_round(self)
+
+    def get_correct_answer(self):
+        # Implemente a lógica para determinar qual é a resposta correta de acordo com as regras do jogo aqui
+        return self.alternatives[0]  # considera que a primeira alternativa é a correta

@@ -1,19 +1,16 @@
 from app import app
-from flask import request
+from flask import request, jsonify
 from ..view.game import Game
 
 
-@app.route('/start-game', methods=['POST'])
-def start_game():
-    # Obtém os parâmetros da requisição
-    clients = request.json['clients']
-    questions = request.json['questions']
-    num_rounds = request.json['num_rounds']
-    time_limit = request.json['time_limit']
-    id_lobby = request.json['id_lobby']
 
-    # Cria uma instância da classe Game e inicia o jogo
-    game = Game(clients, questions, num_rounds, time_limit, id_lobby)
-    game.start_game()
+@app.route('/games/<int:id_lobby>/start', methods=['POST'])
+def start_game(id_lobby):
+    data = request.get_json()
+    theme = data['theme']
+    rounds = data['rounds']
 
-    return "Jogo iniciado com sucesso"
+    game = Game(id_lobby, rounds)
+    game.start(theme)
+
+    return 'Jogo iniciado com sucesso'

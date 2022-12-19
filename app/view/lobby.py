@@ -84,3 +84,20 @@ class LobbyController:
             # Retorna um erro 404 (não encontrado)
             return {'message': 'Lobby not found'}, 404
 
+    def finish_game(self, id):
+        # Obtém o lobby com o ID especificado
+        lobby = Lobby.query.get(id)
+
+        # Verifica se o lobby existe
+        if lobby:
+            # Atualiza o status do lobby para 0 (finalizado)
+            lobby.status = 0
+
+            # Salva as alterações no banco de dados
+            db.session.commit()
+
+            # Retorna o lobby atualizado
+            return lobby_schema.jsonify(lobby)
+        else:
+            # Retorna um erro 404 (não encontrado)
+            return {'message': 'Lobby not found'}, 404
