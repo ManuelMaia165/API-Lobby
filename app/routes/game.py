@@ -4,13 +4,18 @@ from ..view.game import Game
 
 
 
-@app.route('/games/<int:id_lobby>/start', methods=['POST'])
-def start_game(id_lobby):
+@app.route('/start', methods=['POST'])
+def start_game():
+    # obtenha os parâmetros da solicitação
     data = request.get_json()
-    theme = data['theme']
+    id_lobby = data['id_lobby']
     rounds = data['rounds']
+    theme = data['theme']
 
+    # crie uma instância de Game
     game = Game(id_lobby, rounds)
+
+    # inicie o jogo
     game.start(theme)
 
-    return 'Jogo iniciado com sucesso'
+    return 'Jogo iniciado com sucesso!'

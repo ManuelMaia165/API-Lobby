@@ -5,6 +5,8 @@ from .question import QuestionController
 from .alternative import AlternativeController
 
 player_controler = PlayerController()
+alternative_controller = AlternativeController()
+question_controller = QuestionController()
 
 class Game:
     def __init__(self, id_lobby, rounds, host='localhost'):
@@ -18,9 +20,6 @@ class Game:
     def start(self, theme):
         questions = []
         alternatives = []
-
-        question_controller = QuestionController()
-        alternative_controller = AlternativeController()
 
         for i in range(self.rounds):
             question = question_controller.get_random_question_by_theme(theme)
@@ -92,7 +91,7 @@ class Game:
 
 
 class Round:
-    def init(self, game, question, alternatives):
+    def __init__(self, game, question, alternatives):
         self.game = game
         self.question = question
         self.alternatives = alternatives
