@@ -1,0 +1,7 @@
+
+pip install flask
+pip install pika
+pip install pytest
+pip install marshmallow
+pip install flask-sqlalchemy
+pip install mysql-connector
