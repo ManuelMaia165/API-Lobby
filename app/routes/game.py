@@ -2,7 +2,6 @@ from app import app
 from flask import request
 from ..view.game import Game
 from ..view.rabbitMQ import RabbitMQClient
-import json
 
 rabbitmq_client = RabbitMQClient()
 
