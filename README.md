@@ -10,6 +10,8 @@
         Flask-Marshmallow
         Flask-SqlAlchemy
     MySQL
+
+    Rodar o aquivo requirements.txt
 ```
 ## Models da aplicação
 ---
