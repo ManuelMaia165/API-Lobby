@@ -1,4 +1,4 @@
-from app.models.question import Question
+from app.models.question import Question, QuestionSchema, question_schemas
 from sqlalchemy import func
 
 class QuestionController:

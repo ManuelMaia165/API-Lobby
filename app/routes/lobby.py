@@ -1,4 +1,5 @@
 from app import app
+from flask import request
 from ..view.lobby import LobbyController
 from ..view.player import PlayerController
 
