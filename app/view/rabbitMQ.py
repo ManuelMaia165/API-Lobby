@@ -1,10 +1,10 @@
 import pika
-
 class RabbitMQClient:
     def __init__(self, host='localhost'):
         self.host = host
         self.connection = None
         self.channel = None
+        self.consumer_tags = {}  # Adicionei o dicionário consumer_tags para armazenar os consumer tags
 
     def connect(self):
         self.connection = pika.BlockingConnection(
@@ -23,4 +23,6 @@ class RabbitMQClient:
             body=body
         )
 
-rabbitmq_client = RabbitMQClient()
+    def cancel_consumer(self, consumer_tag):
+        self.channel.basic_cancel(consumer_tag)
+        del self.consumer_tags[consumer_tag]  # Removo o consumer tag do dicionário

@@ -46,27 +46,27 @@ class Game:
         self._start_round()
 
     def start_round(self, time_left):
-        # Obtenha uma pergunta aleatória do banco de dados
+        # Obter uma pergunta aleatória do banco de dados
         question = QuestionController().get_random_question_by_theme(self.theme)
 
         # Obtenha as alternativas da pergunta
         alternatives = AlternativeController().get_alternatives_by_question_id(question.id)
 
-        # Inicie uma nova rodada com a pergunta e as alternativas
+        # Iniciar uma nova rodada com a pergunta e as alternativas
         round = Round(self, question, alternatives, time_left)
 
-        # Armazene a rodada atual
+        # Armazenr a rodada atual
         self.current_round = round
 
     def end_round(self, round):
-        # Atualize a pontuação de cada jogador
+        # Atualizar a pontuação de cada jogador
         for user, answer in round.answers.items():
-            # Multiplique o tempo restante pelo fator de pontuação
+            # Multiplicar o tempo restante pelo fator de pontuação
             score = answer['time_left'] * self.point_factor
 
             # Adicione a pontuação ao placar do jogador
             player_controler.update_score(user, score)
-        # Envie o ranking atualizado para todos os jogadores
+        # Enviar o ranking atualizado para todos os jogadores
         message = {
             'type': 'ranking_updated',
             'ranking': self.scores
@@ -181,3 +181,6 @@ class Game:
                 'time_left': time_left
             }
             self.rabbitmq_client.send_message(exchange='', routing_key=user, body=json.dumps(message))
+
+    def cancel_consumer(self, consumer_tag):
+        self.rabbitmq_client.cancel_consumer(consumer_tag)
